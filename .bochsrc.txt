@@ -1,0 +1,19 @@
+memory: guest=16, host=16
+
+romimage: file=/usr/share/bochs/BIOS-bochs-latest, address=0x00000
+vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata0-master: type=cdrom, path="image.iso", status=inserted
+boot: cdrom
+log: bochsout.txt
+error: action=report 
+mouse: enabled=0
+clock: sync=realtime
+cpu: count=2, ips=10000000
+
+display_library: sdl
+port_e9_hack: enabled=1
+
+# Internal debugger (xchg bx, bx)
+magic_break: enabled=1
+
