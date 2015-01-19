@@ -1,0 +1,5 @@
+
+*.o
+image.iso
+iso/boot/kernel
+src/kernel
