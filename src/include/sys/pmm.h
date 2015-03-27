@@ -31,7 +31,7 @@
 #define __PMM_H
 
 #include "kernel.h"
-#include "multiboot.h"
+#include "multiboot1.h"
 
 
 

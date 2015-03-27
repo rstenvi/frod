@@ -8,6 +8,7 @@
 #define __VMLAYOUT_H
 
 #include "sizes.h"
+#include "config.h"
 
 #define BIOS_DATA_ADDR  KB1
 #define MAIN_BIOS_START (KB1*0x380)
@@ -15,11 +16,13 @@
 
 // Kernel is at 1MB
 
-// The stack
+// The stack, 2 4KB blocks for each CPU core
 #define KERNEL_STACK_TOP MB4
 #define KERNEL_STACK_SZ  (KB4*2)
 
-#define MAX_KERNEL_MEM (KERNEL_STACK_TOP - KERNEL_STACK_SZ)
+#define LAPIC_PHYS_VIRT_ADDR (KERNEL_STACK_TOP - (KERNEL_STACK_SZ*MAX_CPUS) - KB4)
+//#define MAX_KERNEL_MEM (KERNEL_STACK_TOP - (KERNEL_STACK_SZ*MAX_CPUS))
+#define MAX_KERNEL_MEM (LAPIC_PHYS_VIRT_ADDR-KB4)
 
 
 #define PROC_VMM_START MB256

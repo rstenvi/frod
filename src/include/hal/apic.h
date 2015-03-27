@@ -34,7 +34,6 @@
 * RSDP description for ACPI 1.0. It has since been extended, but that will not
 * be implemented until it is needed.
 * \todo
-* - Pack it
 * - The is also an extended field if revision is higher than 0
 */
 typedef struct	{
@@ -59,12 +58,14 @@ typedef struct	{
 	* The physical address of the RSDT table.
 	*/
 	uint32_t rsdt_addr;
-} rsdp_descriptor;
+
+	uint32_t length;
+} __attribute__((packed)) rsdp_descriptor;
 
 
 /**
 * System Description Table (SDT) header.
-* \todo Pack it. Is this just the header?
+* \todo Is this just the header?
 */
 typedef struct	{
 	/** Determines what kind of payload follows after this header (*_SIGNATURE) */
@@ -81,12 +82,11 @@ typedef struct	{
 	uint32_t oem_revision;
 	uint32_t creator_id;
 	uint32_t creator_rev;
-} sdth;
+} __attribute__((packed))  sdth;
 
 
 /**
 * Root System Descriptor Table (RSDT).
-* \todo Packed
 */
 typedef struct	{
 	sdth header;
@@ -96,7 +96,7 @@ typedef struct	{
 	* entries = (header->length - sizeof(sdth)) / 4
 	*/
 	uint32_t* pointers;
-} rsdt_table;
+} __attribute__((packed)) rsdt_table;
 
 /**
 * Same as rsdt_table, but pointers are 64 bits. This is used in ACPI >= 2.0
@@ -108,7 +108,7 @@ typedef struct	{
 	* entries = (header->length - sizeof(sdth)) / 8
 	*/
 	uint64_t* pointers;
-} xsdt_table;
+} __attribute__((packed)) xsdt_table;
 
 
 /**
@@ -122,7 +122,7 @@ typedef struct	{
 	// is the length (in bytes?).
 	// The total length is determined by header->length
 
-} madt;
+} __attribute__((packed)) madt;
 
 /**
 * Header for many of the MADT structures.
@@ -130,7 +130,7 @@ typedef struct	{
 typedef struct	{
 	uint8_t type;
 	uint8_t length;
-} madt_h;
+} __attribute__((packed)) madt_h;
 
 /**
 * Processor LAPIC structure. This must be present for each processor in the
@@ -141,7 +141,7 @@ typedef struct	{
 	uint8_t apic_pid;
 	uint8_t apic_id;
 	uint32_t flags;
-} plapic;
+} __attribute__((packed)) plapic;
 
 /**
 * I/O APIC structure. There is one of these for each I/O APIC controller.
@@ -154,7 +154,17 @@ typedef struct	{
 	uint8_t reserved;
 	uint32_t ioapic_addr;
 	uint32_t global_sys_intr;
-} ioapic;
+} __attribute__((packed)) ioapic;
+
+
+/**
+* Information the OS stores about the I/O APIC.
+*/
+typedef struct	{
+	uint8_t id;
+	uint32_t* addr;
+	uint8_t max_interr;
+} __attribute__((packed)) IO_apic;
 
 
 /**
@@ -175,6 +185,5 @@ bool apic_init();
 * available.
 */
 int apic_find_cpus();
-
 
 #endif

@@ -1,5 +1,12 @@
 
+*.bak
+*.swp
 *.o
+*.bin
 image.iso
 iso/boot/kernel
 src/kernel
+bochsout.txt
+
+doc/doxygen_warnings.log
+doc/output/

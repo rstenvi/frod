@@ -30,7 +30,7 @@
 */
 #define PANIC(msg) panic(msg, __FILE__, __LINE__);
 
-
+inline uint32_t xchg(volatile uint32_t* addr, uint32_t n_val);
 
 /**
 * Unrecoverable error, print message and halt the computer.

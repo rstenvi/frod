@@ -11,13 +11,17 @@
 #include "lib/string.h"		// strncmp
 #include "lib/stdio.h"
 
-rsdp_descriptor* rsdp = NULL;
+rsdp_descriptor rsdp;
 
 cpu_info cpus[MAX_CPUS];
 int num_cpus = 0;
-extern uint32_t* local_apic;
+extern volatile uint32_t* local_apic;
 
-uint8_t ioapic_id = NULL;
+extern IO_apic io_apic;
+
+
+#define APIC_BASE_MSR 0x1B
+
 
 /**
 * Finds out where the Root System Description Pointer (RDSP) is located.
@@ -30,71 +34,85 @@ uint32_t find_rsdp();
 uint32_t find_sdt_entry(rsdp_descriptor* rsdp, uint32_t sig);
 
 bool apic_init()	{
-	rsdp = (rsdp_descriptor*)find_rsdp();
+	int matches = 0;
+	uint8_t cs;
+	rsdp_descriptor* trsdp = NULL;
+	while(true)	{
+		trsdp = (rsdp_descriptor*)find_rsdp(matches);
 
-	if(rsdp == NULL)	return false;
+		// No more matches and APIC is not present
+		if(trsdp == NULL)	return false;
 
-	// Checksum must also match, otherwise it is not valid.
-	// TODO: The first could be a false positive, so maybe we should check the
-	// next, if we find it. Just need to:
-	// - Do thid in a loop and find_rsdp() must be able to ignore the first N
-	// matches.
-	if(checksum_8(rsdp, sizeof(rsdp_descriptor)) != 0)
-		return false;
+		// If checksum is not a match, we look for the next one
+		if( (cs = checksum_8(trsdp, 20)) != 0)	{
+			matches++;
+		}
+		else	{
+			break;
+		}
+	}
 
+	// If we get here, we have found a match
+
+	// Store for later
+	memcpy(&rsdp, trsdp, sizeof(rsdp_descriptor));
 	return true;
-
 }
 
-
-uint32_t find_rsdp()	{
+uint32_t find_rsdp(int ignore)	{
+	int found = 0;
 	uint16_t* bda = (uint16_t*)BIOS_DATA_ADDR;
 	
+	uint8_t ebda = (uint8_t*)(bda[7] << 4);
 	// Address to ebda
-	uint64_t* start = (uint8_t*)(bda[7] << 4);
+	uint8_t* start = ebda;
+
+	uint64_t* cmp;
 
 	int i;
 	for(i = 0; i < 1024; i += 1)	{
-		if(start[i] == RSDP_SIGNATURE)	{
-			return (uint32_t)i;
+		cmp = &start[i];
+		if(*cmp == RSDP_SIGNATURE)	{
+			if(found == ignore)
+				return (uint32_t)start + (uint32_t)i;
+			else
+				found++;
 		}
 	}
 
 	// If we get here it was not in the ebda
 	// We must search the main BIOS area
-
-	for(start = (uint8_t*)MAIN_BIOS_START; start < MAIN_BIOS_END; start += 2)
-	{
-		if(*start == RSDP_SIGNATURE)	{
-			return (uint32_t)start;
+	start = (uint8_t*)MAIN_BIOS_START;
+	for(i = 0; i < (MAIN_BIOS_END-(uint32_t)start); i++)	{
+		cmp = &start[i];
+		if(*cmp == RSDP_SIGNATURE)	{
+			if(found == ignore)
+				return (uint32_t)start + (uint32_t)i;
+			else
+				found++;
 		}
-
 	}
-
 	// We didn't find it
 	return 0;
 }
 
-
 uint32_t find_sdt_entry(rsdp_descriptor* rsdp, uint32_t sig)	{
 	uint64_t pointer = 0;
-	uint32_t ptr_sz = 4;
-	if(rsdp->revision > 0)	ptr_sz = 8;
+
 	sdth* rsdt = (sdth*)rsdp->rsdt_addr;
 	sdth* tmp;
+
 	uint32_t ptr_start = (uint32_t)((uint32_t)rsdt + sizeof(sdth));
+	
 	while((uint32_t)ptr_start < ((uint32_t)rsdt + rsdt->length))	{
-		if(ptr_sz == 4)
-			pointer = *((uint32_t*)ptr_start);
-		else
-			pointer = *((uint64_t*)ptr_start);
-		tmp = (sdth*)pointer;
-		if(tmp->sig == sig)	return pointer;
-		ptr_start += ptr_sz;
+		tmp = *((uint32_t*)ptr_start);
+		if(tmp->sig == sig)	return (uint32_t)tmp;
+		ptr_start += 4;
 	}
 	return 0;
 
 }
+
 
 
 // Guidelines for initializing the processors:
@@ -102,14 +120,18 @@ uint32_t find_sdt_entry(rsdp_descriptor* rsdp, uint32_t sig)	{
 // Then logical processors are defined the same as physical processors
 // Return number of processors
 int apic_find_cpus()	{
-	madt* m = (madt*)find_sdt_entry(rsdp, APIC_SIGNATURE);
+	
+	madt* m = (madt*)find_sdt_entry(&rsdp, APIC_SIGNATURE);
 	if(m == NULL)	return 0;
-
-	int ret = 0;
-
 	local_apic = (uint32_t*)m->lapic_addr;
 
-	// TODO: Store lapic addr
+	int ret = 0;
+	#define FOUND_LAPIC  1
+	#define FOUND_IOAPIC 2
+	uint32_t valid_mask = FOUND_LAPIC | FOUND_IOAPIC;
+	uint32_t found_flags = 0;
+
+	// The remaining is one big table of all the necessary data
 	madt_h* tmp = (madt_h*)((uint8_t*)m + sizeof(madt));
 	while((uint8_t*)tmp < ((uint8_t*)m + m->header.length))	{
 		
@@ -119,21 +141,26 @@ int apic_find_cpus()	{
 			cpus[ret].id = p->apic_id;
 			// The first listed is the boot cpu
 			cpus[ret].boot_cpu = ((ret == 0) ? true : false);
-			cpus[ret].started  = ((ret == 0) ? true : false);
+			cpus[ret].started  = ((ret == 0) ? 1 : 0);
 
 			cpus[ret].num_cli = 0;
 			cpus[ret].int_enabled = false;
-
+			found_flags |= FOUND_LAPIC;
 			ret++;
 		}
 		else if(tmp->type == MADT_TYPE_IOAPIC)	{
 			ioapic* io = (ioapic*)tmp;
-			ioapic_id = io->ioapic_id;
+			io_apic.id = io->ioapic_id;
+			io_apic.addr = io->ioapic_addr;
+			kprintf(K_LOW_INFO, "\tIO APIC @0x%x, id = %i Base 0x%x\n",
+				io_apic.addr, io_apic.id, io->global_sys_intr);
+			found_flags |= FOUND_IOAPIC;
 		}
 		tmp = (uint8_t*)tmp + tmp->length;
 	}
-
+	
 	num_cpus = ret;
+	if((found_flags & valid_mask) != valid_mask)	return 0;
 	return ret;
 }
 

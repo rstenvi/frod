@@ -19,6 +19,42 @@
 * - Pointer to multiboot_info structure.
 *
 * This is not a higher half kernel, so no GDT or paging is used.
+*
+* The kernel does the following, in order:
+* - Set up the VGA screen for debug printing.
+* - Check that we received the information necessary from bootloader
+* - Initialize the physical memory manager
+* - Move loaded modules to the correct location
+* - Check if CPU supportes all the features required to boot
+* - Initialize APIC
+* - Find and store info on all CPUs
+* - Set up GDT for code, data, TSS and current CPU executing
+* - Disable the PIC
+* - Set up I/O APIC
+* - Set up IDT - Configures, but does NOT flush it
+* - Set up ISR - Dummy values that vare valid
+* - Set up virtual memory
+*  - Identity maps all taken physical pages at that point, but only the first
+*    4MB
+* - Moves the kernel stack to pre-defined virtual location
+* - Initialize the kernel heap
+* - Start application processors
+*  - Each AP is started through a trampoline code passed as a module to the
+*    kernel
+* - MISSING
+*  - Processes
+*  - VFS
+*  - Disk devices
+*
+* The application processors (AP) start of in real mode, for each AP we must:
+* - Load temporary GDT and enter protected mode
+* - Set up a stack (allocated before we get to real mode)
+* - Jump back into kernel (entry point defined by BSP)
+* - Install the same GDT as on BSP
+* - Enable the LAPIC, same way as on BSP
+* 
+* After this all CPUs enable IDT and start the scheduler.
+* 
 * \ingroup Architecture
 
 *

@@ -29,6 +29,17 @@ void print_regs(Registers* regs, uint32_t lev)	{
 
 }
 
+
+inline uint32_t xchg(volatile uint32_t* addr, uint32_t n_val)   {
+	uint32_t ret;
+	asm volatile("lock xchgl %0, %1" :
+		"+m" (*addr), "=a" (ret) :
+		"1" (n_val) :
+		"cc");
+	return ret;
+}
+
+
 void move_stack(uint32_t new_stack, uint32_t sz, uint32_t init_esp)	{
 	uint32_t i;
 	for(i = new_stack; i >= (new_stack - sz); i -= 4096)	{

@@ -2,6 +2,7 @@
 
 all: kernel
 	cp src/kernel iso/boot
+	cp src/arch/x86/bootap.bin iso/
 	$(GRUB_RESCUE) -o image.iso iso/
 
 kernel:
@@ -10,8 +11,9 @@ kernel:
 run-bochs: all
 	$(BOCHS) -q -f .bochsrc.txt
 
+# SMP does not work with more than 1 CPU on Qemu
 run-qemu: all
-	qemu-system-i386 -cdrom image.iso -smp 4
+	qemu-system-i386 -cdrom image.iso -smp 1
 #	qemu-system-x86_64 -cdrom image.iso
 
 doc:

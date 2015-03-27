@@ -15,7 +15,7 @@
 */
 
 #include "sys/kernel.h"
-#include "sys/multiboot.h"
+#include "sys/multiboot1.h"
 
 #include "lib/stdio.h"
 

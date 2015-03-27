@@ -36,7 +36,7 @@ the CPU expects it to be, sets 1 IDT gate.
 */
 static void idt_set_gate(uint8_t, uint32_t, uint16_t, uint8_t);
 
-static void remap_irq();
+//static void remap_irq();
 
 
 
@@ -47,8 +47,6 @@ void idt_install()	{
 	idt_ptr.base  = (uint32_t)&idt_entries;
 
 	memset(&idt_entries, 0, sizeof(idt_entry)*256);
-
-	remap_irq();
 
 	idt_set_gate(0,  (uint32_t)isr0, 0x08, 0x8E);
 	idt_set_gate(1,  (uint32_t)isr1, 0x08, 0x8E);
@@ -101,11 +99,11 @@ void idt_install()	{
 	idt_set_gate(46, (uint32_t)irq14, 0x08, 0x8E);
 	idt_set_gate(47, (uint32_t)irq15, 0x08, 0x8E);
 
-
-	idt_flush((uint32_t)&idt_ptr);
 }
 
-
+void idt_enable()	{
+	idt_flush((uint32_t)&idt_ptr);
+}
 
 
 
@@ -122,19 +120,5 @@ static void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags
 	// We must uncomment the OR below when we get to using user-mode.
 	// It sets the interrupt gate's privilege level to 3.
 	idt_entries[num].flags	= flags /* | 0x60 */;
-}
-
-
-static void remap_irq()	{
-	outb(0x20, 0x11);
-	outb(0xA0, 0x11);
-	outb(0x21, 0x20);
-	outb(0xA1, 0x28);
-	outb(0x21, 0x04);
-	outb(0xA1, 0x02);
-	outb(0x21, 0x01);
-	outb(0xA1, 0x01);
-	outb(0x21, 0x0);
-	outb(0xA1, 0x0);
 }
 

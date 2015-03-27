@@ -52,10 +52,10 @@ typedef uint32_t (*isr_t)(Registers*);
 #define IRQ_ATA_SEC		47
 
 
-
-#define IRQ_SPURIOUS 100
-#define IRQ_TIMER    101
-#define IRQ_ERROR    102
+// This interrupt will happen regularly and can be safely ignored
+#define IRQ_SPURIOUS 63
+#define IRQ_TIMER    64
+#define IRQ_ERROR    65
 
 
 

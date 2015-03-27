@@ -21,7 +21,7 @@ extern void tss_flush(uint32_t);
 /** Exact number of GDT entries. */
 //#define NUM_GDT_ENTRIES 6
 
-extern cpu_info* cpus;
+extern cpu_info cpus[];
 
 
 //---------------- Internal function definitions ------------------

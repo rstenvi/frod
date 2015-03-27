@@ -34,6 +34,8 @@
 * 
 */
 #include "sys/kernel.h"
+#include "hal/apic.h"
+#include "lib/stdio.h"
 
 extern uint32_t apicbase;
 
@@ -71,11 +73,58 @@ extern uint32_t apicbase;
 #define IOAPIC_IRT_MASK        (1 << 16)
 
 
+#define IOAPIC_INT_DISABLED   0x00010000
 
+
+IO_apic io_apic;
+
+// NOTE: Read and write must be on 32-bit boundaries and it must be 32-bit values.
+
+uint32_t ioapic_read(uint32_t* addr, uint32_t reg);
+void ioapic_write(uint32_t* addr, uint32_t reg, uint32_t val);
 
 
 bool ioapic_install()	{
-	// TODO: Implement
+	/*
+	// I don't think it matter if there is a mismatch
+	uint8_t id = (uint8_t)(ioapic_read(io_apic.addr, IOAPIC_ID_OFF) >> 24);
+	if(id != io_apic.id)	{
+		kprintf(K_FATAL, "Found %x, expected %x\n", id, io_apic.id);
+	}
+	*/
+
+
+	// Disable all interrupts
+	int i;
+	for(i = 0; i < io_apic.max_interr; i++)	{
+		ioapic_write(
+			io_apic.addr,
+			(IOAPIC_REDIR_TAB_OFF+(2*i)),
+			(IOAPIC_INT_DISABLED | (IRQ0 + i))
+		);
+		ioapic_write(
+			io_apic.addr,
+			(IOAPIC_REDIR_TAB_OFF+(2*i)+1),
+			0
+		);
+	}
 
 	return false;
 }
+
+
+
+uint32_t ioapic_read(uint32_t* addr, uint32_t reg)	{
+	uint32_t volatile* a = (uint32_t volatile*)addr;
+	a[0] = (reg & 0xFF);	// Only use first 8 bits
+	return a[4];
+}
+
+
+void ioapic_write(uint32_t* addr, uint32_t reg, uint32_t val)	{
+	uint32_t volatile* a = (uint32_t volatile*)addr;
+	addr[0] = (reg & 0xFF);
+	addr[4] = val;
+}
+
+

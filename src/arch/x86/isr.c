@@ -27,6 +27,7 @@ uint32_t irq_handler(Registers* regs);
 * \param[in] regs All the registers that where saved.
 */
 uint32_t dummy_int_handler(Registers* regs);
+uint32_t irq_spurious(Registers* regs);
 
 
 
@@ -37,6 +38,8 @@ void isr_install()	{
 	for(i = 0; i < 256; i++)	{
 		interrupt_handlers[i] = &dummy_int_handler;
 	}
+
+	interrupt_handlers[IRQ_SPURIOUS] = &irq_spurious;
 }
 
 
@@ -82,3 +85,7 @@ uint32_t dummy_int_handler(Registers* regs)	{
 	return 0;
 }
 
+uint32_t irq_spurious(Registers* regs)	{
+	(void)regs;
+	return 0;
+}

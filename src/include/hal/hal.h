@@ -33,7 +33,7 @@ typedef struct	cpu	{
 	uint8_t id;
 
 	/** If the CPU has started. */
-	volatile bool started;
+	volatile uint32_t started;
 
 	/** Number of times we have diabled interrupts. */
 	int32_t num_cli;
@@ -56,6 +56,8 @@ typedef struct	cpu	{
 } cpu_info;
 
 
+uint32_t cpu_supported();
+
 /**
 * Idea taken directly from xv6, cpu referes to the current CPU.
 * \todo Must initialize the variable to &cpus[cpunum()]
@@ -67,6 +69,8 @@ extern struct cpu *cpu asm("%gs:0");
 int lapic_cpuid();
 
 bool lapic_install();
+uint32_t lapic_read_version();
+void lapic_start_ap(uint8_t id, uint32_t addr);
 
 
 /**
@@ -90,6 +94,7 @@ void gdt_install();
 * Enable IDT
 */
 void idt_install();
+void idt_enable();
 
 /**
 * \ingroup ISR HAL
@@ -106,16 +111,6 @@ void isr_install();
 */
 void register_interrupt_handler(uint8_t n, isr_t handler);
 
-/*
-inline uint32_t alock(volatile uint32_t* addr, uint32_t n_val)	{
-	uint32_t ret;
-	asm volatile("lock xchgl %0, %1" :
-		"+m" (*addr), "=a" (ret) :
-		"1" (n_val) :
-		"cc");
-	return ret;
-}
-*/
 
 uint32_t read_eip();
 

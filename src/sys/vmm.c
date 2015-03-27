@@ -26,7 +26,8 @@
 #define X86_PAGE_PRESENT    0x01
 #define X86_PAGE_WRITABLE   0x02
 #define X86_PAGE_USER       0x04
-#define X86_PAGE_RESERVED   0x08|0x10|0x80|0x100
+#define X86_PAGE_RESERVED   0x08|0x80|0x100
+#define X86_PAGE_CACHE_DIS  0x10
 #define X86_PAGE_ACCESSED   0x20
 #define X86_PAGE_DIRTY      0x40
 #define X86_PAGE_FRAME      0xFFFFF000
@@ -73,6 +74,10 @@ uint32_t handle_page_fault(Registers* regs);
 
 void vmm_addr_to_index(uint32_t addr, uint32_t* dir_index, uint32_t* page_index);
 
+
+uint32_t vmm_return_kernel_dir()	{
+	return (uint32_t)kernel_page_dir->tables;
+}
 
 
 //--------------------- Internal functions ---------------------------
@@ -326,16 +331,19 @@ void vmm_initialize()	{
 	vmm_ptable* ptable = (vmm_ptable*)pmm_alloc_first();
 	memset(ptable, 0x00, sizeof(vmm_ptable));
 	
+	// Identity map the first 4MB
 	uint32_t i = 0;
 	for(i = 0; i < 1024; i++)	{
 		ptable->pages[i] = (uint32_t)(i*4096);
-		if(pmm_is_taken(i))	{
-			pmm_references[i] += 1;
-			ptable->pages[i] |= X86_PAGE_PRESENT | X86_PAGE_WRITABLE;
-		}
-		else
-			ptable->pages[i] |= X86_PAGE_WRITABLE;
+		pmm_references[i] += 1;
+		ptable->pages[i] |= X86_PAGE_PRESENT | X86_PAGE_WRITABLE | X86_PAGE_CACHE_DIS;
 	}
+
+	ptable->pages[LAPIC_PHYS_VIRT_ADDR/4096] = 0xFEE00000 |
+		X86_PAGE_PRESENT | X86_PAGE_WRITABLE | X86_PAGE_CACHE_DIS;
+	lapic_new_address(LAPIC_PHYS_VIRT_ADDR);
+	kprintf(K_LOW_INFO, "\tPage %i | address 0x%x\n", LAPIC_PHYS_VIRT_ADDR/4096,
+		LAPIC_PHYS_VIRT_ADDR);
 
 
 	// Map in the first 4 MB
@@ -348,6 +356,11 @@ void vmm_initialize()	{
 	register_interrupt_handler(14, handle_page_fault);
 	
 	current_page_dir = kernel_page_dir;
+
+
+	// First 4 MB are identity mapped and can be freely used by the kernel
+	// Who can use what is defined in vmlayout.h
+	pmm_mark_mem_taken(0, MB4);
 
 	// Enable paging
 	paging_enable(kernel_page_dir->tables);
