@@ -8,11 +8,11 @@ OBJ=${C_SOURCES:.c=.o}
 OBJ+=${ASM_SOURCES:.s=.o}
 
 all: $(OBJ)
-	ld -N -e start -Ttext 0x7000 -o tmp boot_ap.o
+	ld -m elf_i386 -N -e start -Ttext 0x7000 -o tmp boot_ap.o
 	objcopy -S -O binary -j .text tmp  bootap.bin
 	-rm boot_ap.o tmp
 	# Usermode program starts at virtual memory 1GB
-	ld -N -e start -Ttext 0x40000000 -o tmp usermode.o
+	ld -m elf_i386 -N -e start -Ttext 0x40000000 -o tmp usermode.o
 	objcopy -S -O binary -j .text tmp  usermode.bin
 	-rm usermode.o tmp
 
