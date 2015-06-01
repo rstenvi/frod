@@ -20,7 +20,7 @@
 // 011: Square Wave generator
 // 0:   Binary mode
 #define PIT_VAL_REPEATER	0x36
-
+extern cpu_info cpus[MAX_CPUS];
 
 //------------------ Global variables ----------------------
 volatile uint32_t ticks = 0;
@@ -36,7 +36,9 @@ bool pit_install(uint32_t freq)	{
 	// Will be a number to large for 16 bits
 	if(freq < 19)	return false;
 
-	register_interrupt_handler(IRQ0, increment_tick);
+	register_interrupt_handler(IRQ_PIT, increment_tick);
+	kprintf(K_BOCHS_OUT, "\t@%x\n", increment_tick);
+
 
 	uint32_t div = 1193180 / freq;
 
@@ -48,6 +50,8 @@ bool pit_install(uint32_t freq)	{
 
 	// Higher byte
 	outb(PIT_DATA_CHANNEL0, (uint8_t)( (div>>8) & 0xFF ));
+
+	pic_enable_irq(0);
 	return true;
 }
 
@@ -56,14 +60,20 @@ void kwait(uint32_t nticks)	{
 	while(ticks < end);
 }
 
+void pit_disable()	{
+	pic_disable_irq(0);
+}
+
 
 //-------------- Internal function implementations ---------------------
 
 uint32_t increment_tick(Registers* regs)	{
+	(void)regs;
 	ticks++;
-	if(ticks % 32 == 0)
-		return switch_task(regs);
-	return (uint32_t)regs;
+	kprintf(K_BOCHS_OUT, "T %i\n", cpus[lapic_cpuid()].id);
+//	if(ticks % 32 == 0)
+//		return switch_task(regs);
+	return (uint32_t)0;
 }
 
 

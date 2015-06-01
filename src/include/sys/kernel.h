@@ -18,10 +18,13 @@
 #include "../vmlayout.h"
 #include "../sizes.h"
 
+#include "../lib/stdio.h"
+#include "../lib/string.h"
 
 #ifdef TEST_KERNEL
 	#include "../tests.h"
 #endif
+
 
 
 /**
@@ -52,31 +55,16 @@ void print_regs(Registers* regs, uint32_t lev);
 */
 
 
-
 uint8_t checksum_8(uint8_t* data, int len);
 uint16_t checksum_16(uint16_t* data, int len);
 uint32_t checksum_32(uint32_t* data, int len);
 uint64_t checksum_64(uint64_t* data, int len);
 
 
-#ifdef TEST_KERNEL
-
 /**
-* Code that is common for (all) main test functions.
+* Initialize the syscall handler, i.e. register for syscalls.
 */
-#define common_test_code(str,t)\
-int res = 0, count = 0;\
-do	{\
-	if( (res = (*t[count])()) != 0)	{\
-		kprintf(K_LOW_INFO, "%s: index %i, FAILED: %i\n", str, count, res);\
-		return false;\
-	}\
-	count++;\
-} while(t[count] != NULL);\
-return true;
-
-#endif	// TEST_KERNEL
-
+void syscall_init();
 
 
 #endif

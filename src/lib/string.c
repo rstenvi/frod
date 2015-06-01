@@ -221,16 +221,7 @@ bool string_run_all_tests()	{
 		string_test_cpy,
 		NULL
 	};
-
-	int res = 0, count = 0;
-	do	{
-		if( (res = (*tests[count])()) != 0)	{
-			kprintf(K_LOW_INFO, "Index: %i FAILED: %i\n", count, res);
-			return false;
-		}
-		count++;
-	} while(tests[count] != NULL);
-	return true;
+	return kernel_generic_unit_test(tests, "string_run_all_tests()");
 }
 
 

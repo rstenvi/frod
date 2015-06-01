@@ -44,7 +44,7 @@ void move_stack(uint32_t new_stack, uint32_t sz, uint32_t init_esp)	{
 	uint32_t i;
 	for(i = new_stack; i >= (new_stack - sz); i -= 4096)	{
 		uint32_t phys = (uint32_t)pmm_alloc_first();
-		vmm_map_page(phys, i);
+		vmm_map_page(phys, i, X86_PAGE_WRITABLE);
 	}
 	uint32_t old_stack;
 	get_esp(old_stack);
@@ -140,6 +140,23 @@ int kernel_test_checksum()	{
 
 	return 0;
 }
+
+
+
+bool kernel_generic_unit_test(unit_test* tests, const char* func)	{
+	int res = 0, count = 0;
+	do	{
+		if( (res = (*tests[count])()) != 0)	{
+			kprintf(K_LOW_INFO, "%s: INDEX: %i FAILED: %i\n", func, count, res);
+			return false;
+		}
+		count++;
+	} while(tests[count] != NULL);
+
+	return true;
+}
+
+
 
 
 bool kernel_run_all_tests()	{

@@ -4,8 +4,10 @@
 */
 
 #include "sys/kernel.h"
+#include "sys/vmm.h"
 
 #include "hal/hal.h"
+#include "hal/apic.h"
 
 #include "sys/multiboot1.h"
 #include "sys/pit.h"
@@ -15,8 +17,16 @@
 #include "sys/heap.h"
 
 #include "drv/vga.h"
+#include "drv/ps2.h"
 
 #include "lib/stdio.h"
+
+
+acpi_info ainfo;
+
+void test_main(multiboot_info *mboot_ptr, uint32_t mem_start, uint32_t mem_end, uint32_t stack);
+
+
 
 
 void kmain(multiboot_info *mboot_ptr, uint32_t mem_start, uint32_t mem_end, uint32_t stack)	{
@@ -26,6 +36,15 @@ void kmain(multiboot_info *mboot_ptr, uint32_t mem_start, uint32_t mem_end, uint
 	if(VM_VALID == false)	{
 		PANIC("Virtual memory is NOT valid\n");
 	}
+
+
+
+#ifdef TEST_KERNEL
+	test_main(mboot_ptr, mem_start, mem_end, stack);
+#endif
+
+
+
 
 	// Initialize the VGA screen
 	vga_init(DEFAULT_FG, DEFAULT_BG);
@@ -44,12 +63,6 @@ void kmain(multiboot_info *mboot_ptr, uint32_t mem_start, uint32_t mem_end, uint
 		for(;;);
 	#endif
 
-#ifdef TEST_KERNEL
-	if(pmm_run_all_tests() == false)	{
-		kprintf(K_LOW_INFO, "pmm_run_all_tests() failed\n");
-		for(;;);
-	}
-#endif
 	
 	// Initialize the physical memory manager
 	init_pmm((multiboot_mmap*)mboot_ptr->mmap_addr, mboot_ptr->mmap_length);
@@ -59,25 +72,25 @@ void kmain(multiboot_info *mboot_ptr, uint32_t mem_start, uint32_t mem_end, uint
 	pmm_mark_mem_taken(mem_start, mem_end);
 	
 	// Move code that handles bootstrapping of APs into the correct location
-	if(!move_module(mboot_ptr, "bootap.bin", 0x7000))	{
+	if(!move_module(mboot_ptr, "sc2.bin", (uint8_t*)MODULE1_LOCATION))	{
+		PANIC("Unable to move sc2.bin");
+	}
+	kbd_init(MODULE1_LOCATION);
+
+	if(!move_module(mboot_ptr, "bootap.bin", (uint8_t*)0x7000))	{
 		PANIC("Unable to move bootapp.bin");
 	}
 	
 	if(cpu_supported() == 0)
 		PANIC("CPU not supported");
 
-#ifdef TEST_KERNEL
-	if(string_run_all_tests() == false)	{
-		kprintf(K_LOW_INFO, "string_run_all_tests\n");
-		for(;;);
-	}
-	if(kernel_run_all_tests() == false)	{
-		for(;;);
-	}
-#endif
 
 	if(apic_init() == false)	{
 		PANIC("APIC NOT found\n");
+	}
+
+	if(apic_find_info(&ainfo) != 0)	{
+		PANIC("Unable to store information about system\n");
 	}
 
 	int n = apic_find_cpus();
@@ -113,8 +126,29 @@ void kmain(multiboot_info *mboot_ptr, uint32_t mem_start, uint32_t mem_end, uint
 	
 	isr_install();
 	kprintf(K_HIGH_INFO, "[INIT] ISR initialized\n");
+
+//	kprintf(K_HIGH_INFO, "%x\n", ainfo.boot_flags);
+//	if(ainfo.boot_flags & FADT_BOOT_FLAG_8042)	{
+	int16_t res = ps2_init();
+	if(res < 0)
+		kprintf(K_HIGH_INFO, "[INFO] No PS/2 controller found: %i\n", res);
+	else	{
+		if(res > 0)
+			kprintf(K_HIGH_INFO, "[INFO] 1 PS/2 device found\n");
+		else
+			kprintf(K_HIGH_INFO, "[INFO] 2 PS/2 devices found\n");
+	}
+	ps2kbd_init();
+
+	int nn;
+	if( (nn = uart_init()) != 0)	{
+		kprintf(K_HIGH_INFO, "UART NOT initialized: %i\n", nn);
+	}
+
+	syscall_init();
+	kprintf(K_HIGH_INFO, "[INIT] Syscalls\n");
 	
-	vmm_initialize();
+	vmm_init();
 	kprintf(K_HIGH_INFO, "[INIT] Paging\n");
 	
 	move_stack(KERNEL_STACK_TOP, KERNEL_STACK_SZ, stack);
@@ -123,31 +157,45 @@ void kmain(multiboot_info *mboot_ptr, uint32_t mem_start, uint32_t mem_end, uint
 	heap_init();
 	kprintf(K_HIGH_INFO, "[INIT] Kernel Heap\n");
 
+	nn = process_init();
+	kprintf(K_HIGH_INFO, "[INIT] Configured kernel process: %i\n", nn);
+
+//	process_start_usermode();
+//	kprintf(K_HIGH_INFO, "[INIT] Configured user mode process\n");
+
 	kprintf(K_HIGH_INFO, "[INFO] Starting APs\n");
 	cpu_start_aps();
 	
 	// REMARK: Should never return here
 	while(1);
-
-/*
-#ifdef TEST_KERNEL
-	if(vmm_run_all_tests() == false)	while(true);
-#endif
-
-
-#ifdef TEST_KERNEL
-	kprintf(K_HIGH_INFO, "Passed all tests\n");
-	for(;;);
-#endif
-*/
-	
-	// Not ready yet
-//	process_init();
-
-
-	// TODO: Not ready for interrupts yet
-//	enable_int();
-
 }
 
 
+#ifdef TEST_KERNEL
+void test_main(multiboot_info *mboot_ptr, uint32_t mem_start, uint32_t mem_end,
+	uint32_t stack)	{
+	
+	vga_init(DEFAULT_FG, DEFAULT_BG);
+	int n;
+	if( (n = uart_init()) != 0)	{
+		kprintf(K_HIGH_INFO, "UART NOT initialized: %i\n", n);
+		PANIC("NO UART");
+	}
+
+	check_necessary_flags(mboot_ptr->flags);
+
+
+	if(pmm_run_all_tests_before() == false)
+		PANIC("pmm_run_all_tests_before() failed");
+	init_pmm((multiboot_mmap*)mboot_ptr->mmap_addr, mboot_ptr->mmap_length);
+
+
+
+	if(string_run_all_tests() == false)
+		PANIC("string_run_all_tests failed");
+
+
+	if(kernel_run_all_tests() == false)
+		PANIC("kernel_run_all_tests failed");
+}
+#endif

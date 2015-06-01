@@ -44,7 +44,7 @@ bool apic_init()	{
 		if(trsdp == NULL)	return false;
 
 		// If checksum is not a match, we look for the next one
-		if( (cs = checksum_8(trsdp, 20)) != 0)	{
+		if( (cs = checksum_8((uint8_t*)trsdp, 20)) != 0)	{
 			matches++;
 		}
 		else	{
@@ -63,16 +63,16 @@ uint32_t find_rsdp(int ignore)	{
 	int found = 0;
 	uint16_t* bda = (uint16_t*)BIOS_DATA_ADDR;
 	
-	uint8_t ebda = (uint8_t*)(bda[7] << 4);
+	uint8_t ebda = (uint8_t)((uint8_t*)(bda[7] << 4));
 	// Address to ebda
-	uint8_t* start = ebda;
+	uint8_t* start = (uint8_t*)ebda;
 
 	uint64_t* cmp;
 
-	int i;
+	uint32_t i;
 	for(i = 0; i < 1024; i += 1)	{
-		cmp = &start[i];
-		if(*cmp == RSDP_SIGNATURE)	{
+		cmp = (uint64_t*)&start[i];
+		if(*cmp == (uint16_t)RSDP_SIGNATURE)	{
 			if(found == ignore)
 				return (uint32_t)start + (uint32_t)i;
 			else
@@ -84,8 +84,8 @@ uint32_t find_rsdp(int ignore)	{
 	// We must search the main BIOS area
 	start = (uint8_t*)MAIN_BIOS_START;
 	for(i = 0; i < (MAIN_BIOS_END-(uint32_t)start); i++)	{
-		cmp = &start[i];
-		if(*cmp == RSDP_SIGNATURE)	{
+		cmp = (uint64_t*)&start[i];
+		if(*cmp == (uint64_t)RSDP_SIGNATURE)	{
 			if(found == ignore)
 				return (uint32_t)start + (uint32_t)i;
 			else
@@ -97,7 +97,7 @@ uint32_t find_rsdp(int ignore)	{
 }
 
 uint32_t find_sdt_entry(rsdp_descriptor* rsdp, uint32_t sig)	{
-	uint64_t pointer = 0;
+//	uint64_t pointer = 0;
 
 	sdth* rsdt = (sdth*)rsdp->rsdt_addr;
 	sdth* tmp;
@@ -105,12 +105,27 @@ uint32_t find_sdt_entry(rsdp_descriptor* rsdp, uint32_t sig)	{
 	uint32_t ptr_start = (uint32_t)((uint32_t)rsdt + sizeof(sdth));
 	
 	while((uint32_t)ptr_start < ((uint32_t)rsdt + rsdt->length))	{
-		tmp = *((uint32_t*)ptr_start);
+		tmp = (sdth*)(*((uint32_t*)ptr_start));
 		if(tmp->sig == sig)	return (uint32_t)tmp;
 		ptr_start += 4;
 	}
 	return 0;
 
+}
+
+int32_t apic_find_info(acpi_info* info)	{
+	fadt* m = (fadt*)find_sdt_entry(&rsdp, FADT_SIGNATURE);
+	if(m == NULL)	return APIC_ERROR_FADT_UNAVAILABLE;
+
+	kprintf(K_HIGH_INFO, "\t%i\n", m->h.length);
+
+	if(checksum_8((uint8_t*)m, m->h.length) != 0)	{
+		return APIC_ERROR_CHECKSUM;
+	}
+	info->pm_preferred = m->preferred_PM_profile;
+	info->boot_flags = m->boot_flags;
+
+	return APIC_SUCCESS;
 }
 
 
@@ -130,10 +145,12 @@ int apic_find_cpus()	{
 	#define FOUND_IOAPIC 2
 	uint32_t valid_mask = FOUND_LAPIC | FOUND_IOAPIC;
 	uint32_t found_flags = 0;
+	kprintf(K_BOCHS_OUT, "\t%x\n", m->flags);
 
 	// The remaining is one big table of all the necessary data
 	madt_h* tmp = (madt_h*)((uint8_t*)m + sizeof(madt));
 	while((uint8_t*)tmp < ((uint8_t*)m + m->header.length))	{
+		kprintf(K_BOCHS_OUT, "\t%x\n", tmp->type);
 		
 		if(tmp->type == MADT_TYPE_LAPIC)	{
 			plapic* p = (plapic*)tmp;
@@ -151,12 +168,12 @@ int apic_find_cpus()	{
 		else if(tmp->type == MADT_TYPE_IOAPIC)	{
 			ioapic* io = (ioapic*)tmp;
 			io_apic.id = io->ioapic_id;
-			io_apic.addr = io->ioapic_addr;
+			io_apic.addr = (uint32_t*)io->ioapic_addr;
 			kprintf(K_LOW_INFO, "\tIO APIC @0x%x, id = %i Base 0x%x\n",
 				io_apic.addr, io_apic.id, io->global_sys_intr);
 			found_flags |= FOUND_IOAPIC;
 		}
-		tmp = (uint8_t*)tmp + tmp->length;
+		tmp = (madt_h*)((uint8_t*)tmp + tmp->length);
 	}
 	
 	num_cpus = ret;

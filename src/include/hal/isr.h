@@ -34,8 +34,8 @@ typedef uint32_t (*isr_t)(Registers*);
 
 
 
-#define IRQ_PIT			32
-#define IRQ_KEYBOARD		33
+#define IRQ_PIT       32
+#define IRQ_KEYBOARD  33
 #define IRQ_UNUSED		34
 #define IRQ_COM2			35
 #define IRQ_COM1			36
@@ -53,6 +53,7 @@ typedef uint32_t (*isr_t)(Registers*);
 
 
 // This interrupt will happen regularly and can be safely ignored
+// The lowest 4 bits should be set to 1
 #define IRQ_SPURIOUS 63
 #define IRQ_TIMER    64
 #define IRQ_ERROR    65
@@ -77,6 +78,8 @@ typedef uint32_t (*isr_t)(Registers*);
 #define IRQ13 45
 #define IRQ14 46
 #define IRQ15 47
+
+#define IRQ_KBD 1
 
 
 #endif	// File

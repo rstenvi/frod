@@ -30,6 +30,28 @@
 
 
 
+#define APIC_ERROR_FADT_UNAVAILABLE -1
+#define APIC_ERROR_CHECKSUM         -2
+
+#define APIC_SUCCESS 0
+
+
+#define FADT_BOOT_FLAG_LEGACY (1 << 0)
+#define FADT_BOOT_FLAG_8042   (1 << 1)
+#define FADT_BOOT_FLAG_NOVGA  (1 << 2)
+#define FADT_BOOT_FLAG_NOMSI  (1 << 3)
+#define FADT_BOOT_FLAG_NOASPM (1 << 4)
+#define FADT_BOOT_FLAG_NORTC  (1 << 5)
+
+/**
+* General information about the computer we store for future reference.
+*/
+typedef struct	{
+	uint8_t pm_preferred;
+	uint16_t boot_flags;
+} acpi_info;
+
+
 /**
 * RSDP description for ACPI 1.0. It has since been extended, but that will not
 * be implemented until it is needed.
@@ -110,6 +132,57 @@ typedef struct	{
 	uint64_t* pointers;
 } __attribute__((packed)) xsdt_table;
 
+/**
+* Fixed ACPI Description Table (FADT)
+*/
+typedef struct	{
+	sdth h;
+
+	uint32_t firmware_ctrl;;
+    uint32_t dsdt;
+
+    uint8_t  reserved;
+
+    uint8_t  preferred_PM_profile;
+    uint16_t sci_int;
+    uint32_t smi_cmd;
+    uint8_t  acpi_enable;
+    uint8_t  acpi_disable;
+    uint8_t  s3bios_req;
+    uint8_t  pstate_cnt;
+    uint32_t pm1a_evt_blk;
+    uint32_t pm1b_evt_blk;
+    uint32_t pm1a_cnt_blk;
+    uint32_t pm1b_cnt_blk;
+    uint32_t pm2_cnt_blk;
+    uint32_t pm_tmr_blk;
+    uint32_t gpe0_blk;
+    uint32_t gpe1_blk;
+    uint8_t  PM1EventLength;
+    uint8_t  PM1ControlLength;
+    uint8_t  PM2ControlLength;
+    uint8_t  PMTimerLength;
+    uint8_t  GPE0Length;
+    uint8_t  GPE1Length;
+    uint8_t  GPE1Base;
+    uint8_t  CStateControl;
+    uint16_t WorstC2Latency;
+    uint16_t WorstC3Latency;
+    uint16_t FlushSize;
+    uint16_t FlushStride;
+    uint8_t  DutyOffset;
+    uint8_t  DutyWidth;
+    uint8_t  DayAlarm;
+    uint8_t  MonthAlarm;
+    uint8_t  Century;
+
+    // reserved in ACPI 1.0; used since ACPI 2.0+
+    uint16_t boot_flags;
+
+    uint8_t  Reserved2;
+    uint32_t Flags;
+} __attribute__((packed)) fadt;
+
 
 /**
 * The structure of the Multiple APIC Description Table (MADT).
@@ -155,6 +228,8 @@ typedef struct	{
 	uint32_t ioapic_addr;
 	uint32_t global_sys_intr;
 } __attribute__((packed)) ioapic;
+
+
 
 
 /**

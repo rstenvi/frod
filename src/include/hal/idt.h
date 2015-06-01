@@ -59,6 +59,15 @@ extern void irq13();
 extern void irq14();
 extern void irq15();
 
+
+
+extern void intr63();
+extern void intr64();
+extern void intr65();
+
+
+extern void isr128();
+
 #if defined(x86)
 	typedef uint32_t idt_base_addr;
 #elif defined(x86_64)

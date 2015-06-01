@@ -84,7 +84,7 @@ void gdt_install()	{
 	write_tss(c, 5, 0x10, 0);
 
 	// Map in the pointer to the current CPU. Concept taken from xv6.
-	gdt_set_gate(c, 6, &c->cpu, &c->cpu+(PTR_SZ*1), 0x92, 0xCF);
+	gdt_set_gate(c, 6, (uint32_t)&c->cpu, &c->cpu+(PTR_SZ*1), 0x92, 0xCF);
 
 	gdt_flush((uint32_t)&c->gdt_ptr);
 

@@ -7,6 +7,10 @@ image.iso
 iso/boot/kernel
 src/kernel
 bochsout.txt
+serial.txt
 
 doc/doxygen_warnings.log
 doc/output/
+
+src/tools/sc2.bin
+

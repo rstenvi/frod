@@ -42,7 +42,7 @@ void vga_putc(char ch)	{
 	uint16_t write = (uint16_t)ch + ((uint16_t)screen.color << 8);
 
 	// Backspace
-	if(ch == 0x09 && screen.x > 0)	{
+	if(ch == 0x08 && screen.x > 0)	{
 		write_blank(screen.x, screen.y);
 		screen.x--;
 	}

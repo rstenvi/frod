@@ -9,6 +9,7 @@
 
 [EXTERN isr_handler]
 [EXTERN irq_handler]
+[EXTERN intr_handler]
 
 
 [EXTERN process_init]
@@ -38,6 +39,75 @@
 		push dword %2
 		jmp irq_common_stub
 %endmacro
+
+%macro INTR_NOERRCODE 1
+	[GLOBAL intr%1]
+	intr%1:
+		push byte 0
+		push byte %1
+		jmp intr_common_stub
+%endmacro
+
+
+
+
+; TODO: Use this stub for all the interrupts
+%macro STUB 2
+	%1:
+		; Push all the general purpuse registers, it's reverse of the order given in
+		; Registers in arch.h
+		pusha
+
+		xor eax, eax
+		mov ax, ds
+		push eax
+
+		mov ax, es
+		push eax
+
+		mov ax, fs
+		push eax
+
+		mov ax, gs
+		push eax
+
+		; When we start changing to user mode, I need to make sure we can change to
+		; kernel and back to user mode when we leave
+		mov ax, 0x10	; load the kernel data segment descriptor
+		mov ds, ax
+		mov es, ax
+		mov fs, ax
+		mov gs, ax
+
+		mov eax, esp
+		push eax
+
+		call %2
+
+		add esp, 4
+
+	.ret_%1:
+		mov eax, 0x10
+		pop ebx	; gs
+		mov gs, ax
+
+		pop ebx	; fs
+		mov fs, ax
+
+		pop ebx	; es
+		mov es, ax
+
+		pop ebx	; ds
+		mov ds, ax
+
+		popa		; Pop the stack in reverse order as pusha
+
+		; Clean up from the error code and the interrupt number
+		add esp, 8
+
+		iret
+%endmacro
+
 
 
 
@@ -93,114 +163,18 @@ IRQ 14, 46
 IRQ 15, 47
 
 
+INTR_NOERRCODE 63
+INTR_NOERRCODE 64
 
 
-isr_common_stub:
-	; Push all the general purpuse registers, it's reverse of the order given in
-	; Registers in arch.h
-	pusha
-	
-	xor eax, eax 
-	mov ax, ds
-	push eax
-	
-	mov ax, es
-	push eax
-	
-	mov ax, fs
-	push eax
-	
-	mov ax, gs
-	push eax
-
-	; When we start changing to user mode, I need to make sure we can change to
-	; kernel and back to user mode when we leave
-	mov ax, 0x10	; load the kernel data segment descriptor
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
-	mov gs, ax
-	
-	mov eax, esp
-	push eax
-
-	call isr_handler
-
-	add esp, 4
-	
-trap_ret0:
-	mov eax, 0x10
-	pop ebx	; gs
-	mov gs, ax
-
-	pop ebx	; fs
-	mov fs, ax
-
-	pop ebx	; es
-	mov es, ax
-
-	pop ebx	; ds
-	mov ds, ax
+; Syscall
+ISR_NOERRCODE 128
 
 
-	popa		; Pop the stack in reverse order as pusha
+STUB intr_common_stub, intr_handler
+STUB isr_common_stub,  isr_handler
+STUB irq_common_stub,  irq_handler
 
-	; Clean up from the error code and the interrupt number
-	add esp, 8
-
-	iret
-
-
-
-
-; Pretty much the same as isr_common_stub, only a different function is called.
-irq_common_stub:
-	pusha
-
-	xor eax, eax
-	mov ax, ds
-	push eax
-	
-	mov ax, es
-	push eax
-	
-	mov ax, fs
-	push eax
-	
-	mov ax, gs
-	push eax
-
-	mov ax, 0x10  ; load the kernel data segment descriptor
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
-	mov gs, ax
-
-	; Push the pointer as argument
-	push esp
-
-	call irq_handler
-
-	mov esp, eax
-
-trap_ret:
-	mov eax, 0x10
-	pop ebx	; gs
-	mov gs, bx
-
-	pop ebx	; fs
-	mov fs, bx
-
-	pop ebx	; es
-	mov es, bx
-
-	pop ebx	; ds
-	mov ds, bx
-
-	popa
-
-	add esp, 8	; interrupt code and error code
-	iret
 
 
 call_process_init:
@@ -216,3 +190,4 @@ call_process_init:
 	popad
 	add esp, 0x10
 	ret
+

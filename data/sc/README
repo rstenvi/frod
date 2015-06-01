@@ -1,0 +1,7 @@
+
+CSV-files of scancodes, can be used to generate a binary file that can be used
+in the kernel.
+
+There are two different keyboard, 101-key and 102-key, each has three sets,
+currently only set 2 is specified.
+

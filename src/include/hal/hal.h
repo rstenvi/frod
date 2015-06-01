@@ -19,6 +19,15 @@
 #include "tss.h"
 
 
+
+
+#define PIC_PORT_MASTER_CMD  0x20
+#define PIC_PORT_MASTER_DATA 0x21
+#define PIC_PORT_SLAVE_CMD   0xA0
+#define PIC_PORT_SLAVE_DATA  0xA1
+
+
+
 #if ARCH==x86
 	#define PTR_SZ 4
 #else
@@ -193,6 +202,8 @@ enum interrupt_num	{
 #define pop_all() asm("popa")
 
 
+#define read_cr2(a) asm("mov %%cr2, %0" : "=r" (a))
+
 
 /**
 * Send a byte to a given port.
@@ -287,6 +298,7 @@ uint32_t get_eip();
 
 
 void change_tss(pcb* p);
+
 
 
 /** @} */	// HAL

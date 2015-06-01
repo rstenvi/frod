@@ -154,7 +154,8 @@ LLMalloc* heap_get_new_block(LLMalloc* prev)	{
 	for(i = 0; i < HEAP_BLOCKS; i++)	{
 		phys = (uint32_t)pmm_alloc_first();
 
-		if(vmm_map_page(phys, (HEAP_START+(kheap.blocks_allocked*4096))))	{
+		if(vmm_map_page(phys, (HEAP_START+(kheap.blocks_allocked*4096)),
+			X86_PAGE_WRITABLE))	{
 			printf("i = %i, phys = %p\n", i, phys);
 			PANIC("Unable to map page");
 		}

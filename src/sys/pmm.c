@@ -284,14 +284,14 @@ bool pmm_test_emulate()	{
 }
 
 
-bool pmm_run_all_tests()	{
-	int res;
-	res = pmm_test_defines();
-	if(res > 0)	{
-		kprintf(K_LOW_INFO, "pmm_test_defines() failed: %i\n", res);
-		return false;
-	}
-	return true;
+// Tests before manager has been initialized
+bool pmm_run_all_tests_before()	{
+	unit_test tests[2] = {
+		pmm_test_defines,
+		NULL
+	};
+
+	return kernel_generic_unit_test(tests, "pmm_run_all_tests_before()");
 }
 
 #endif

@@ -4,6 +4,7 @@
 
 #include "sys/kernel.h"
 #include "lib/string.h"
+#include "lib/stdio.h"
 #include "hal/idt.h"
 #include "hal/hal.h"
 
@@ -39,6 +40,9 @@ static void idt_set_gate(uint8_t, uint32_t, uint16_t, uint8_t);
 //static void remap_irq();
 
 
+void idt_none()	{
+	PANIC("Unahandled IDT\n");
+}
 
 //-------------------- Public API implementations ---------------------------
 
@@ -47,6 +51,11 @@ void idt_install()	{
 	idt_ptr.base  = (uint32_t)&idt_entries;
 
 	memset(&idt_entries, 0, sizeof(idt_entry)*256);
+	int i;
+	for(i = 0; i < 256; i++)	{
+		idt_set_gate(i, (uint32_t)idt_none, 0x08, 0x8E);
+	}
+
 
 	idt_set_gate(0,  (uint32_t)isr0, 0x08, 0x8E);
 	idt_set_gate(1,  (uint32_t)isr1, 0x08, 0x8E);
@@ -99,6 +108,11 @@ void idt_install()	{
 	idt_set_gate(46, (uint32_t)irq14, 0x08, 0x8E);
 	idt_set_gate(47, (uint32_t)irq15, 0x08, 0x8E);
 
+
+	idt_set_gate(63, (uint32_t)intr63, 0x08, 0x8E);
+	idt_set_gate(64, (uint32_t)intr64, 0x08, 0x8E);
+
+	idt_set_gate(128, (uint32_t)isr128, 0x08, 0x8E);
 }
 
 void idt_enable()	{
@@ -119,6 +133,6 @@ static void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags
 	// TODO:
 	// We must uncomment the OR below when we get to using user-mode.
 	// It sets the interrupt gate's privilege level to 3.
-	idt_entries[num].flags	= flags /* | 0x60 */;
+	idt_entries[num].flags	= flags | 0x60;
 }
 

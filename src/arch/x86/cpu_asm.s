@@ -106,6 +106,7 @@ cpu_supported:
 
 	mov eax, CPUID_CHECK_MASK_APIC
 	or eax, CPUID_CHECK_MASK_MSR
+	or eax, CPUID_CHECK_MASK_PAE
 	call cpu_has_id_set
 	jz .fail
 	

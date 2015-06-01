@@ -9,11 +9,14 @@ log: bochsout.txt
 error: action=report 
 mouse: enabled=0
 clock: sync=realtime
-cpu: count=2, ips=10000000
+cpu: count=1, ips=10000000
+keyboard: type=at, serial_delay=200, paste_delay=100000, keymap=sdl-pc-us.map
 
 display_library: sdl
 port_e9_hack: enabled=1
 
 # Internal debugger (xchg bx, bx)
 magic_break: enabled=1
+
+com1: enabled=1, mode=file, dev=serial.txt
 

@@ -7,6 +7,9 @@
 #include "hal/isr.h"
 #include "hal/hal.h"
 
+extern cpu_info cpus[MAX_CPUS];
+
+#define PIC_DATA_EOI 0x20
 
 //-------------- Global variables -------------------------
 
@@ -67,14 +70,21 @@ uint32_t isr_handler(Registers* regs)	{
 
 uint32_t irq_handler(Registers* regs)	{
 	if (regs->int_no >= 40)	{
-		outb(0xA0, 0x20);
+		outb(PIC_PORT_SLAVE_CMD, PIC_DATA_EOI);
 	}
-	outb(0x20, 0x20);
+	outb(PIC_PORT_MASTER_CMD, PIC_DATA_EOI);
 	if (interrupt_handlers[regs->int_no] != 0)	{
 		isr_t handler = interrupt_handlers[regs->int_no];
 		return handler(regs);
 	}
 	return (uint32_t)regs;
+}
+
+uint32_t intr_handler(Registers* regs)	{
+	kprintf(K_BOCHS_OUT, "Int # %i @ CPU %i\n", regs->int_no, cpus[lapic_cpuid()].id);
+	switch_task(regs);
+	lapic_send_eoi();
+	return 0;
 }
 
 uint32_t dummy_int_handler(Registers* regs)	{
@@ -87,5 +97,6 @@ uint32_t dummy_int_handler(Registers* regs)	{
 
 uint32_t irq_spurious(Registers* regs)	{
 	(void)regs;
+	kprintf(K_BOCHS_OUT, "HERE\n");
 	return 0;
 }

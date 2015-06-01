@@ -95,6 +95,7 @@ bool ioapic_install()	{
 
 
 	// Disable all interrupts
+	kprintf(K_FATAL, "\tMax interr %i\n", io_apic.max_interr);
 	int i;
 	for(i = 0; i < io_apic.max_interr; i++)	{
 		ioapic_write(
@@ -113,6 +114,19 @@ bool ioapic_install()	{
 }
 
 
+void ioapic_enable_irq(int irq, int cpu_id)	{
+	ioapic_write(
+		io_apic.addr,
+		IOAPIC_REDIR_TAB_OFF+(2*irq),
+		(IRQ0 + irq)
+	);
+	ioapic_write(
+		io_apic.addr,
+		IOAPIC_REDIR_TAB_OFF+(2*irq)+1,
+		(cpu_id << 24)
+	);
+}
+
 
 uint32_t ioapic_read(uint32_t* addr, uint32_t reg)	{
 	uint32_t volatile* a = (uint32_t volatile*)addr;
@@ -123,8 +137,8 @@ uint32_t ioapic_read(uint32_t* addr, uint32_t reg)	{
 
 void ioapic_write(uint32_t* addr, uint32_t reg, uint32_t val)	{
 	uint32_t volatile* a = (uint32_t volatile*)addr;
-	addr[0] = (reg & 0xFF);
-	addr[4] = val;
+	a[0] = (reg & 0xFF);
+	a[4] = val;
 }
 
 

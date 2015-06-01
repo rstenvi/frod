@@ -1,6 +1,7 @@
 /**
 * \file multiboot.c
 * Parse and print out information about multiboot structure.
+* \todo Change all to use kprintf
 */
 
 #include "sys/kernel.h"
@@ -126,19 +127,23 @@ void print_mb_cmdline(multiboot_info* m)	{
 
 void print_mb_modules(multiboot_info* m)	{
 	printf("Modules loaded: %i\n", m->mods_count);
-	int i;
+	uint32_t i;
+	multiboot_module* mm = m->mods_addr;
 	for(i = 0; i < m->mods_count; i++)	{
-		printf("\tModule %i loaded at: %p\n", i, m->mods_addr);
-		printf("\t\t%s: %x -> %x\n",
-			m->mods_addr->name,
-			m->mods_addr->start,
-			m->mods_addr->end
+		kprintf(K_BOCHS_OUT, "\tModule %i loaded at: %p\n", i, mm);
+		kprintf(K_BOCHS_OUT, "\t\t%s: %x -> %x\n",
+			mm->name,
+			mm->start,
+			mm->end
 		);
+		uint32_t t = (uint32_t)mm;
+		t += sizeof(multiboot_module);
+		mm = (multiboot_module*)t;
 	}
 }
 
 void print_mb_sym_aout(multiboot_info* m)	{
-
+	(void)m;
 }
 
 
@@ -202,20 +207,24 @@ void print_mb_vbe(multiboot_info* m)	{
 bool move_module(multiboot_info* m, char* name, uint8_t* to)	{
 	bool ret = false;
 	uint32_t i;
+	multiboot_module* mm = m->mods_addr;
 	for(i = 0; i < m->mods_count; i++)	{
-		if(strcmp(m->mods_addr->name, name) == 0)	{
+		if(strcmp(mm->name, name) == 0)	{
 			memcpy(
 				to,
-				(uint8_t*)m->mods_addr->start,
-				(m->mods_addr->end - m->mods_addr->start)
+				(uint8_t*)mm->start,
+				(mm->end - mm->start)
 			);
 
 			// Mark this memory as taken is the memory manager
-			pmm_mark_mem_taken(m->mods_addr->start,m->mods_addr->end);
+			pmm_mark_mem_taken(mm->start,mm->end);
 
 			ret = true;
 			break;
 		}
+		uint32_t t = (uint32_t)mm;
+		t += sizeof(multiboot_module);
+		mm = (multiboot_module*)t;
 	}
 	return ret;
 }
@@ -229,14 +238,14 @@ void check_necessary_flags(uint32_t flags)	{
 	}
 
 	
-	if(flags & MULTIBOOT_INFO_MODS == 0)	{
+	if((flags & MULTIBOOT_INFO_MODS) == 0)	{
 		PANIC("Multiboot: No information about modules loaded\n");
 	}
 	
 
 	// Need information about memory map
 	if((flags & MULTIBOOT_INFO_MMAP) == 0)	{
-		kprintf("Multiboot: No information about memory map\n");
+		kprintf(K_LOW_INFO, "Multiboot: No information about memory map\n");
 	}
 }
 
